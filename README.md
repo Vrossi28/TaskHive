@@ -6,6 +6,7 @@
 
 ## Content
 - [About](#about)
+  - [Tech stack](#tech-stack)
   - [Workspaces](#within-workspaces-its-possible-to)
   - [Tasks](#within-tasks-its-possible-to)
 - [Test environment](#how-to-run-test-environment)
@@ -29,6 +30,12 @@
 ## About
 Task Hive Server is the backend of Task Hive, a project management software created by me for research purpose.
 **You are most welcome to contribute for this project** :grinning:
+### Tech Stack
+- .NET Core 6.0
+- SQL Server
+- Amazon Web Services S3
+- Hangfire
+For complete architecture details please check my LinkedIn post: [LinkedIn](https://www.linkedin.com/posts/vinicius-rossi-br_devops-software-cloud-activity-7067198947294900225-oSgQ?utm_source=share&utm_medium=member_desktop, "LinkedIn")
 ### Within workspaces it's possible to:
 - Create tasks.
 - Invite external users to your workspace.
@@ -181,7 +188,7 @@ If you found a bug or want to request a feature, please report it by creating a 
     <tbody>
         <tr>
             <td align="center">
-                <a href="https://alisolanki.com/">
+                <a href="https://www.linkedin.com/in/vinicius-rossi-br/?locale=en_US">
                     <img src="https://avatars.githubusercontent.com/u/57651321?s=400&u=8d5bd045263f2a42ad3e3a4a61dbd26270501ea3&v=4" width="100px;" alt="Vinicius Rossi"/>
                     <br />
                     <sub><b>Vinicius Rossi</b></sub>
