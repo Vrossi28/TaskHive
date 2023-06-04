@@ -35,6 +35,7 @@ Task Hive Server is the backend of Task Hive, a project management software crea
 - SQL Server
 - Amazon Web Services S3
 - Hangfire
+
 For complete architecture details please check my LinkedIn post: [LinkedIn](https://www.linkedin.com/posts/vinicius-rossi-br_devops-software-cloud-activity-7067198947294900225-oSgQ?utm_source=share&utm_medium=member_desktop, "LinkedIn")
 ### Within workspaces it's possible to:
 - Create tasks.
