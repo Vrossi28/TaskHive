@@ -1,0 +1,30 @@
+version: '3'
+services:
+  task.hive.db:
+    build:
+      context: ./TaskHive.Infrastructure/Config
+      dockerfile: Dockerfile
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "TaskHive@dm1n"
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+  task.hive.core:
+    build:
+      context: .
+      dockerfile: TaskHive.WebApi/Dockerfile
+    depends_on:
+      - task.hive.db
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=task.hive.db;Initial Catalog=taskhive;Persist Security Info=False;User ID=sa;Password=TaskHive@dm1n;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;
+      - AwsConfiguration__AwsAccessKey=AWSACCESSKEY
+      - AwsConfiguration__AwsSecretKey=AWSSECRETKEY
+      - AwsConfiguration__AwsBucketName=AWSBUCKETNAME
+      - EmailService__SenderEmail=senderemail@outlook.com
+      - EmailService__SenderPassword=senderpassword
+      - EmailService__WebAppUrl=http://productionurl.com
+      - Jwt__SecretKey=wGxqIr4EFM5NQQ/SECRETKEYTOEDIT
+    ports:
+      - "8080:80"

@@ -1,0 +1,15 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace TaskHive.Application.Services.Attachments
+{
+    public class S3UploadObject
+    {
+        public string Name { get; set; }
+        public MemoryStream InputStream { get; set; }
+        public string BucketName { get; set; }
+    }
+}
