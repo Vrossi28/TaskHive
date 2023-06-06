@@ -1,6 +1,8 @@
 using Hangfire;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Polly;
 using TaskHive.Application;
 using TaskHive.Infrastructure;
 using TaskHive.Infrastructure.Persistence;
@@ -24,19 +26,36 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
 
-    try
+    var policy = Policy
+            .Handle<SqlException>()
+            .WaitAndRetryAsync(
+                retryCount: 5,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (exception, _, retryAttempt, _) =>
+                {
+                    Console.WriteLine($"Retry #{retryAttempt} due to: {exception.Message}");
+                });
+    await policy.ExecuteAsync(async () =>
     {
-        var context = services.GetRequiredService<TaskHiveContext>();
-        if (context.Database.GetPendingMigrations().Any())
+        try
         {
-            context.Database.Migrate();
+            var context = services.GetRequiredService<TaskHiveContext>();
+            if (context.Database.GetPendingMigrations().Any())
+            {
+                context.Database.Migrate();
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
-    }
+        catch (SqlException ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Failed to connect to the database.");
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "An error occurred while migrating the database.");
+        }
+    });
 }
 
 if (app.Environment.IsDevelopment())
