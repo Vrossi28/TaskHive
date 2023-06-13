@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Net;
+using System.Security.Claims;
 using TaskHive.Application.Services.Attachments;
+using TaskHive.Application.Services.SignalR;
 using TaskHive.Core.Entities;
 using TaskHive.Infrastructure.Repositories;
 
@@ -13,11 +16,13 @@ namespace TaskHive.WebApi.Controllers
     {
         private readonly IStorageService _storageService;
         private readonly IConfiguration _configuration;
+        private readonly ISignalRContract _signalRContract;
 
-        public StorageController(IStorageService storageService, IConfiguration configuration)
+        public StorageController(IStorageService storageService, IConfiguration configuration, ISignalRContract signalRContract)
         {
             _storageService = storageService;
             _configuration = configuration;
+            _signalRContract = signalRContract;
         }
 
         /// <summary>
@@ -25,14 +30,24 @@ namespace TaskHive.WebApi.Controllers
         /// </summary>
         /// <response code="200">File saved</response>
         /// <response code="400">Empty file</response>
-        /// <response code="404">Issue identification not found</response>
+        /// <response code="404">Authenticated account not found</response>
         /// <response code="409">Not possible to save file at AWS</response>
         /// <response code="422">File size cannot be higher than 10MB</response>
         /// <response code="500">Internal error</response>
         [HttpPost("storage/issue/{issueId}")]
         [Consumes("multipart/form-data")]
+        [Authorize]
         public async Task<IActionResult> Upload(IFormFile file, Guid issueId)
         {
+            IssueRepository issueRepository = new();
+            var existing = await issueRepository.GetIssueByIdAsync(issueId);
+            if (existing == null) return NotFound("Issue not found.");
+
+            AccountRepository accountRepository = new();
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var user = await accountRepository.GetActiveAccountByEmailAsync(email);
+            if (user == null) return NotFound(new { message = "User not found." });
+
             if (file == null || file.Length == 0) return BadRequest("Empty file.");
 
             if (file.ContentType != "image/jpeg" && file.ContentType != "image/png"
@@ -45,10 +60,6 @@ namespace TaskHive.WebApi.Controllers
                 return Conflict("Not allowed file type.");
 
             if (file.Length > 10485760) return UnprocessableEntity("File size cannot be higher than 10MB.");
-
-            IssueRepository issueRepository = new();
-            var existing = await issueRepository.GetIssueByIdAsync(issueId);
-            if (existing == null) return NotFound("Issue not found.");
 
             await using var memoryStream = new MemoryStream();
             await file.CopyToAsync(memoryStream);
@@ -100,6 +111,7 @@ namespace TaskHive.WebApi.Controllers
             if (!added)
                 return Problem();
 
+            await _signalRContract.UpdateIssue(user.AccountId.ToString(), issueId);
             return Ok(result);
         }
 
@@ -107,10 +119,21 @@ namespace TaskHive.WebApi.Controllers
         /// Provides a list of files from issue
         /// </summary>
         /// <response code="200">List of files</response>
+        /// <response code="404">Authenticated account not found</response>
         /// <response code="500">Internal error</response>
         [HttpGet("storage/issue/{issueId}/files")]
+        [Authorize]
         public async Task<IActionResult> GetFilesFromIssue(Guid issueId)
         {
+            AccountRepository accountRepository = new();
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var user = await accountRepository.GetActiveAccountByEmailAsync(email);
+            if (user == null) return NotFound(new { message = "User not found." });
+
+            IssueRepository issueRepository = new();
+            var existing = await issueRepository.GetIssueByIdAsync(issueId);
+            if (existing == null) return NotFound("Issue not found.");
+
             var credentials = new AwsCredentials()
             {
                 AccessKey = _configuration[AwsConstants.AccessKey],
@@ -129,12 +152,19 @@ namespace TaskHive.WebApi.Controllers
         /// Deletes a file
         /// </summary>
         /// <response code="204">File deleted</response>
+        /// <response code="400">Invalid authentication</response>
         /// <response code="404">File not found</response>
         /// <response code="409">Not possible to delete file at AWS</response>
         /// <response code="500">Internal error</response>
         [HttpDelete("storage/issue/{issueId}/files/{issueFileId}")]
+        [Authorize]
         public async Task<IActionResult> DeleteFileFromIssue(Guid issueId, Guid issueFileId)
         {
+            AccountRepository accountRepository = new();
+            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var user = await accountRepository.GetActiveAccountByEmailAsync(email);
+            if (user == null) return BadRequest(new { message = "User not found." });
+
             var credentials = new AwsCredentials()
             {
                 AccessKey = _configuration[AwsConstants.AccessKey],
@@ -162,6 +192,7 @@ namespace TaskHive.WebApi.Controllers
                     return Conflict(json);
                 }
 
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), issueId);
                 return NoContent();
             }
 

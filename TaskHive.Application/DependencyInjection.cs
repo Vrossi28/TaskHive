@@ -127,6 +127,10 @@ namespace TaskHive.Application
 
             #endregion
 
+            #region SignalR
+            services.AddSignalR();
+            #endregion
+
             return services;
         }
     }

@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System.Security.Claims;
 using TaskHive.Application.Contracts.Requests;
 using TaskHive.Application.Services.Email;
+using TaskHive.Application.Services.SignalR;
 using TaskHive.Core.Entities;
 using TaskHive.Core.Enums;
 using TaskHive.Infrastructure.Repositories;
@@ -15,6 +16,12 @@ namespace TaskHive.WebApi.Controllers
     [ApiController]
     public class IssueController : ControllerBase
     {
+        private ISignalRContract _signalRContract;
+        public IssueController(ISignalRContract signalRContract)
+        {
+            _signalRContract = signalRContract;
+        }
+
         /// <summary>
         /// Creates an issue and sends email to involved accounts
         /// </summary>
@@ -78,6 +85,8 @@ namespace TaskHive.WebApi.Controllers
                     EmailService emailService = new();
                     BackgroundJob.Enqueue(() => emailService.SendTaskAssignedEmail(assignedUser, newIssue, email)); 
                 }
+
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), newIssue.IssueId);
 
                 return Ok(new { id = newIssue.IssueId });
             }
@@ -273,6 +282,8 @@ namespace TaskHive.WebApi.Controllers
                 var result = await accountLoggedWorkRepository.AddLoggedWork(loggedWork);
                 if (!result) return Problem();
 
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), logWork.IssueId);
+
                 return Ok(new { id = loggedWork.AccountLoggedWorkId });
             }
             catch (Exception ex)
@@ -297,7 +308,11 @@ namespace TaskHive.WebApi.Controllers
             if (existing != null)
             {
                 var deleted = await accountLoggedWorkRepository.DeleteLoggedWork(existing);
-                if (deleted) return NoContent();
+                if (deleted)
+                {
+                    await _signalRContract.UpdateIssue(existing.AccountId.ToString(), existing.IssueId);
+                    return NoContent();
+                }
                 return Problem();
             }
 
@@ -385,6 +400,7 @@ namespace TaskHive.WebApi.Controllers
                     EmailService emailService = new();
                     BackgroundJob.Enqueue(() => emailService.SendTaskAssignedEmail(assignedUser, mapped, email));
                 }
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), result.IssueId);
 
                 return Ok(new { id = result.IssueId });
             }
@@ -443,6 +459,7 @@ namespace TaskHive.WebApi.Controllers
 
                 EmailService emailService = new();
                 BackgroundJob.Enqueue(() => emailService.SendTaskClosedEmail(issue, issueResolutionDetail));
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), issue.IssueId);
 
                 return Ok(new { id = issueResolutionDetail.IssueResolutionId });
             }
@@ -487,6 +504,7 @@ namespace TaskHive.WebApi.Controllers
                 if (result == null) return Problem();
 
                 var json = JsonConvert.SerializeObject(result, Formatting.Indented);
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), issueId);
 
                 return Ok(json);
             }
@@ -534,6 +552,7 @@ namespace TaskHive.WebApi.Controllers
                 if (updated)
                 {
                     await issueResolutionDetailRepository.DeleteIssueResolutionDetail(issueResolutionDetail);
+                    await _signalRContract.UpdateIssue(user.AccountId.ToString(), issueId);
                     return NoContent();
                 }
                 return Problem();
@@ -666,6 +685,7 @@ namespace TaskHive.WebApi.Controllers
                 var saved = await issueCommentRepository.AddCommentAsync(newComment);
                 if (!saved) return Problem();
 
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), issueId);
                 return Ok(new { id = newComment.IssueCommentId });
             }
             catch (Exception ex)
@@ -709,6 +729,7 @@ namespace TaskHive.WebApi.Controllers
                 var deleted = await issueCommentRepository.DeleteCommentAsync(existingComment);
                 if (!deleted) return Problem();
 
+                await _signalRContract.UpdateIssue(user.AccountId.ToString(), issueId);
                 return NoContent();
             }
             catch (Exception ex)

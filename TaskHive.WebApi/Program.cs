@@ -4,8 +4,11 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using TaskHive.Application;
+using TaskHive.Application.Services.SignalR;
+using TaskHive.Application.Services.SignalR.Hubs;
 using TaskHive.Infrastructure;
 using TaskHive.Infrastructure.Persistence;
+using TaskHive.WebApi.Clients.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors();
@@ -19,6 +22,14 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSingleton<ISignalRContract, SignalRClient>(sp =>
+{
+    ILogger<SignalRClient> logger = sp.GetRequiredService<ILogger<SignalRClient>>();
+    string url = builder.Configuration["SignalRService:BaseUrl"];
+    string accessToken = builder.Configuration["SignalRService:AccessToken"];
+
+    return new SignalRClient(logger, url, accessToken);
+});
 
 var app = builder.Build();
 app.UseHttpLogging();
@@ -33,7 +44,8 @@ using (var scope = app.Services.CreateScope())
                 sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
                 onRetry: (exception, _, retryAttempt, _) =>
                 {
-                    Console.WriteLine($"Retry #{retryAttempt} due to: {exception.Message}");
+                    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                    logger.LogWarning($"Retry #{retryAttempt} due to: {exception.Message}");
                 });
     await policy.ExecuteAsync(async () =>
     {
@@ -86,6 +98,7 @@ app.UseCors(builder =>
 app.UseEndpoints(endpoints =>
 {
     endpoints.MapControllers();
+    endpoints.MapHub<NotificationHub>("/notification-hub");
 });
 
 app.UseHangfireDashboard();

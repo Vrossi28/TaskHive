@@ -26,5 +26,7 @@ services:
       - EmailService__SenderPassword=senderpassword
       - EmailService__WebAppUrl=http://productionurl.com
       - Jwt__SecretKey=wGxqIr4EFM5NQQ/SECRETKEYTOEDIT
+      - SignalRService__BaseUrl=http://localhost:80/notification-hub
+      - SignalRService__AccessToken=22aa36d3129af6055e312ac0faf244c6
     ports:
       - "8080:80"
