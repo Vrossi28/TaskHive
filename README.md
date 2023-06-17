@@ -42,6 +42,7 @@ Task Hive Server is the backend of Task Hive, a project management software crea
 - Hangfire
 - SignalR
 - Docker
+- Jenkins
 
 For complete architecture details please check my LinkedIn post: [LinkedIn](https://www.linkedin.com/posts/vinicius-rossi-br_devops-software-cloud-activity-7067198947294900225-oSgQ?utm_source=share&utm_medium=member_desktop, "LinkedIn")
 
