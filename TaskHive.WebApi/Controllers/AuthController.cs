@@ -11,6 +11,9 @@ using TaskHive.Application.Services.Security;
 using TaskHive.Application.Services.Email;
 using TaskHive.Core.Enums;
 using TaskHive.Application.Contracts.Requests;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.ComponentModel.DataAnnotations;
 
 namespace TaskHive.WebApi.Controllers
 {
@@ -257,7 +260,7 @@ namespace TaskHive.WebApi.Controllers
             AccountRepository accountRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var account = await accountRepository.GetAccountDto(email);
                 if (account == null) return NotFound();
 
@@ -284,7 +287,7 @@ namespace TaskHive.WebApi.Controllers
             AccountRepository accountRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var logged = await accountRepository.GetAccountDto(email);
                 if (logged == null) return NotFound();
 
@@ -468,6 +471,8 @@ namespace TaskHive.WebApi.Controllers
                 Account existingAccount;
                 existingAccount = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (existingAccount == null) return NotFound(new { message = "Account not found." });
+
+                if (existingAccount.SignUpType != SignUpType.Default) return BadRequest(new { message = $"Account has {existingAccount.SignUpType} authentication" });
 
                 existingAccount.PasswordResetToken = _securityHelper.GenerateRandomToken();
                 existingAccount.ResetTokenExpiration = DateTime.UtcNow.AddMinutes(15);
