@@ -56,7 +56,7 @@ namespace TaskHive.WebApi.Controllers
                     return Conflict(new { message = "Account not verified. Check your email." });
                 }
 
-                if (!_securityHelper.VerifyPassword(user.Password, existingAccount.HashedPassword))
+                if (existingAccount.SignUpType == SignUpType.Default && !_securityHelper.VerifyPassword(user.Password, existingAccount.HashedPassword))
                 {
                     return BadRequest(new { message = "Invalid password." });
                 }
@@ -184,13 +184,16 @@ namespace TaskHive.WebApi.Controllers
                 var companyCreated = await companyRepository.AddCompany(newCompany);
                 if (!companyCreated) return Problem();
 
-                var hashedPassword = _securityHelper.HashPassword(user.Password);
+                var defaultSignUp = user.SignUpMode == SignUpType.Default;
+                string hashedPassword = string.Empty;
+
+                if (defaultSignUp) hashedPassword = _securityHelper.HashPassword(user.Password);
 
                 Account newAccount = new()
                 {
                     FirstName = user.FirstName,
                     LastName = user.LastName,
-                    AccountState = State.Inactive,
+                    AccountState = defaultSignUp ? State.Inactive : State.Active,
                     Email = user.Email,
                     MobileNumber = user.MobileNumber,
                     HashedPassword = hashedPassword,
@@ -203,7 +206,8 @@ namespace TaskHive.WebApi.Controllers
                     SignUpType = user.SignUpMode,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
-                    TimeZone = user.TimeZone ?? "00:00"
+                    TimeZone = user.TimeZone ?? "00:00",
+                    VerifiedAt = defaultSignUp ? null : DateTime.UtcNow,
                 };
 
                 var accountCreated = await accountRepository.AddAccount(newAccount);
