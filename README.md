@@ -43,6 +43,7 @@ Task Hive Server is the backend of Task Hive, a project management software crea
 - SignalR
 - Docker
 - Jenkins
+- Google OAuth
 
 For complete architecture details please check my LinkedIn post: [LinkedIn](https://www.linkedin.com/posts/vinicius-rossi-br_devops-software-cloud-activity-7067198947294900225-oSgQ?utm_source=share&utm_medium=member_desktop, "LinkedIn")
 
@@ -77,7 +78,7 @@ For complete architecture details please check my LinkedIn post: [LinkedIn](http
 
 ### 1 - Setting up the Web API
 
-First make sure to properly configure the following environment variables at `docker-compose.yml` to allow you to properly upload files to your Amazon S3 bucket and also to receive email notifications:
+First make sure to properly configure the following environment variables at `docker-compose.yml` to allow you to properly upload files to your Amazon S3 bucket, to receive email notifications and authenticate with Google:
 
 - AwsConfiguration\_\_AwsAccessKey=**AWSACCESSKEY**
 - AwsConfiguration\_\_AwsSecretKey=**AWSSECRETKEY**
@@ -85,6 +86,8 @@ First make sure to properly configure the following environment variables at `do
 - EmailService\_\_SenderEmail=**senderemail@outlook.com**
 - EmailService\_\_SenderPassword=**senderpassword**
 - EmailService\_\_WebAppUrl=**http://productionurl.com**
+- Authentication\_\_Google\_\_ClientId=**GOOGLECLIENTID**
+- Authentication\_\_Google\_\_ClientSecret=**GOOGLECLIENTSECRET**
 
 ### 2 - Running the containers
 
