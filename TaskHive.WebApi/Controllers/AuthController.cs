@@ -77,6 +77,81 @@ namespace TaskHive.WebApi.Controllers
         }
 
         /// <summary>
+        /// Provides authentication from external source, can determine whether is for login or register an user
+        /// </summary>
+        /// <param name="provider">External authentication provider (Google)</param>
+        /// <param name="action">Determine whether is intending to register or login an user (register, login)</param>
+        /// <param name="company">When registering a new user, defines its company name</param>
+        /// <response code="200">(login) - Token <br/> (register) - Account registered</response>
+        /// <response code="400">(login) - Invalid credentials</response>
+        /// <response code="404">(login) - Email not registered</response>
+        /// <response code="409">(login) - Account not verified <br/> (register) - Email already registered</response>
+        /// <response code="500">Internal error</response>
+        [HttpGet("auth/external/{provider}")]
+        public IActionResult ExternalAuthentication([FromRoute] string provider, [FromQuery] [Required] string action, [FromQuery] string company)
+        {
+            var properties = new AuthenticationProperties { RedirectUri = $"/api/auth/{action}/external/{provider}" };
+            if (string.IsNullOrEmpty(action) || (action != "register" && action != "login")) return BadRequest(new { message = "Invalid action" });
+
+            if (action.Equals("register")) properties.Items["company"] = company;
+            return Challenge(properties, provider);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [HttpGet("auth/login/external/{provider}")]
+        public async Task<IActionResult> HandleExternalLogin()
+        {
+            var hasError = HttpContext.Request.Query.ContainsKey("error");
+
+            if (hasError) return Forbid();
+
+            var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            IEnumerable<Claim> claims = result.Principal.Identities.FirstOrDefault().Claims.Select(claim =>
+            new Claim(claim.Issuer, claim.OriginalIssuer, claim.Type, claim.Value));
+
+            var email = claims.Select(e => e.Issuer).Where(e => e.Contains('@')).FirstOrDefault();
+
+            return await Login(new LoginRequest { Email = email });
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [HttpGet("auth/register/external/{provider}")]
+        public async Task<IActionResult> HandleExternalRegistration(string provider)
+        {
+            var hasError = HttpContext.Request.Query.ContainsKey("error");
+
+            if (hasError) return Forbid();
+
+            var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var companyName = result.Properties.Items["company"];
+
+            IEnumerable<Claim> claims = result.Principal.Identities.FirstOrDefault().Claims.Select(claim =>
+            new Claim(claim.Issuer, claim.OriginalIssuer, claim.Type, claim.Value));
+
+            var firstName = claims.ElementAt(2).Issuer;
+            var lastName = claims.ElementAt(3).Issuer;
+            var email = claims.Select(e => e.Issuer).Where(e => e.Contains('@')).FirstOrDefault();
+
+            SignUpType signUpType = SignUpType.Google;
+            Enum.TryParse(provider, out signUpType);
+
+            RegisterRequest request = new()
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                Email = email,
+                CompanyName = companyName,
+                Culture = "en-US",
+                TimeZone = "00:00",
+                SignUpMode = signUpType,
+                MobileNumber = string.Empty
+            };
+
+            return await Register(request);
+        }
+
+        /// <summary>
         /// Creates an account
         /// </summary>
         /// <response code="200">Account created</response>
