@@ -82,6 +82,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.MapHealthChecks("/health");
 app.UseRouting();
+app.UseCookiePolicy();
 app.UseResponseCompression();
 app.UseAuthentication();
 app.UseAuthorization();
