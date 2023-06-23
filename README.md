@@ -1,6 +1,6 @@
 # Task Hive Server
 
-![](https://img.shields.io/badge/Updated-June%20%204,%202023-lightgrey.svg)
+![](https://img.shields.io/badge/Updated-June%20%2023,%202023-lightgrey.svg)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](#contributing)
 
 #### [Task Hive](https://taskhive.live "Task Hive") is a project management tool that provides options for creating, updating, and deleting workspaces and tasks. Users can manage workspaces by adding team members, sharing files, and exchanging messages. Tasks can be created, assigned to team members, and tracked for progress.
