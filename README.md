@@ -14,6 +14,7 @@
 - [Test environment](#how-to-run-test-environment)
   - [Pre-requisites](#pre-requisites)
   - [Setting up the Web API](#1---setting-up-the-web-api)
+    - [Generating a dev certificate](#11---generating-a-dev-certificate)
   - [Running the containers](#2---running-the-containers)
   - [How to check the documentation](#3---how-to-check-the-documentation)
 - [Development environment](#how-to-setup-development-environment)
@@ -43,6 +44,7 @@ Task Hive Server is the backend of Task Hive, a project management software crea
 - SignalR
 - Docker
 - Jenkins
+- Google OAuth
 
 For complete architecture details please check my LinkedIn post: [LinkedIn](https://www.linkedin.com/posts/vinicius-rossi-br_devops-software-cloud-activity-7067198947294900225-oSgQ?utm_source=share&utm_medium=member_desktop, "LinkedIn")
 
@@ -74,17 +76,29 @@ For complete architecture details please check my LinkedIn post: [LinkedIn](http
 
 - Docker properly installed.
 - Pull all project files.
+- .NET 6.0 (For generate dev certificate)
 
 ### 1 - Setting up the Web API
 
-First make sure to properly configure the following environment variables at `docker-compose.yml` to allow you to properly upload files to your Amazon S3 bucket and also to receive email notifications:
+### 1.1 - Generating a dev certificate
+Run the following commands in order to create a dev certificate which will be used to allow HTTPS and subsequently, Google Authentication. Replace `$CREDENTIAL_PLACEHOLDER$` with a desired password for you certificate.
 
+```bash
+dotnet dev-certs https -ep "$env:USERPROFILE\.aspnet\https\aspnetapp.pfx"  -p $CREDENTIAL_PLACEHOLDER$
+dotnet dev-certs https --trust
+```
+
+Make sure to properly configure the following environment variables at `docker-compose.yml` to allow you to properly upload files to your Amazon S3 bucket, to receive email notifications and authenticate with Google:
+
+- ASPNETCORE\_Kestrel\_\_Certificates\_\_Default\_\_Password=**DEVCERTIFICATEPASSWORD**
 - AwsConfiguration\_\_AwsAccessKey=**AWSACCESSKEY**
 - AwsConfiguration\_\_AwsSecretKey=**AWSSECRETKEY**
 - AwsConfiguration\_\_AwsBucketName=**AWSBUCKETNAME**
 - EmailService\_\_SenderEmail=**senderemail@outlook.com**
 - EmailService\_\_SenderPassword=**senderpassword**
 - EmailService\_\_WebAppUrl=**http://productionurl.com**
+- Authentication\_\_Google\_\_ClientId=**GOOGLECLIENTID**
+- Authentication\_\_Google\_\_ClientSecret=**GOOGLECLIENTSECRET**
 
 ### 2 - Running the containers
 
@@ -109,11 +123,11 @@ CONTAINER ID   IMAGE                     COMMAND                  CREATED       
 b428e0001854   taskhive-task.hive.db     "/opt/mssql/bin/sqls…"   5 minutes ago   Up 5 minutes   0.0.0.0:1433->1433/tcp          taskhive-task.hive.db-1
 ```
 
-Now, to send http requests to the API it's needed to send through the URL `http://localhost:8080/api/[DESIRED-ENDPOINT]`
+Now, to send http requests to the API it's needed to send through the URL `https://localhost:8080/api/[DESIRED-ENDPOINT]`
 
 ### 3 - How to check the documentation
 
-All endpoints of the solution are documented with swagger. Since you have started Task Hive Core you can check all endpoints, its purposes, how to send a request, data models, etc, by opening the URL `http://localhost:8080/swagger/index.html` in your browser.
+All endpoints of the solution are documented with swagger. Since you have started Task Hive Core you can check all endpoints, its purposes, how to send a request, data models, etc, by opening the URL `https://localhost:8080/swagger/index.html` in your browser.
 
 # How to setup development environment
 

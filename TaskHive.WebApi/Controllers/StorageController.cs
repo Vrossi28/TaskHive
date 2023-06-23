@@ -44,7 +44,7 @@ namespace TaskHive.WebApi.Controllers
             if (existing == null) return NotFound("Issue not found.");
 
             AccountRepository accountRepository = new();
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
             var user = await accountRepository.GetActiveAccountByEmailAsync(email);
             if (user == null) return NotFound(new { message = "User not found." });
 
@@ -126,7 +126,7 @@ namespace TaskHive.WebApi.Controllers
         public async Task<IActionResult> GetFilesFromIssue(Guid issueId)
         {
             AccountRepository accountRepository = new();
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
             var user = await accountRepository.GetActiveAccountByEmailAsync(email);
             if (user == null) return NotFound(new { message = "User not found." });
 
@@ -161,7 +161,7 @@ namespace TaskHive.WebApi.Controllers
         public async Task<IActionResult> DeleteFileFromIssue(Guid issueId, Guid issueFileId)
         {
             AccountRepository accountRepository = new();
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
             var user = await accountRepository.GetActiveAccountByEmailAsync(email);
             if (user == null) return BadRequest(new { message = "User not found." });
 

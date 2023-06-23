@@ -47,7 +47,7 @@ using (var scope = app.Services.CreateScope())
                     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
                     logger.LogWarning($"Retry #{retryAttempt} due to: {exception.Message}");
                 });
-    await policy.ExecuteAsync(async () =>
+    await policy.ExecuteAsync(() =>
     {
         try
         {
@@ -67,6 +67,8 @@ using (var scope = app.Services.CreateScope())
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
             logger.LogError(ex, "An error occurred while migrating the database.");
         }
+
+        return Task.CompletedTask;
     });
 }
 
@@ -80,6 +82,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.MapHealthChecks("/health");
 app.UseRouting();
+app.UseCookiePolicy();
 app.UseResponseCompression();
 app.UseAuthentication();
 app.UseAuthorization();

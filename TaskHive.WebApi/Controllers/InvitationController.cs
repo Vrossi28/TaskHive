@@ -28,7 +28,7 @@ namespace TaskHive.WebApi.Controllers
             WorkspaceRepository workspaceRepository = new();
             InviteRepository inviteRepository = new();
 
-            var email = User.FindFirst(ClaimTypes.Name)?.Value;
+            var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
             var user = await accountRepository.GetActiveAccountByEmailAsync(email);
             if (user == null) return NotFound(new { message = "User not found." });
 

@@ -14,19 +14,27 @@ services:
     build:
       context: .
       dockerfile: TaskHive.WebApi/Dockerfile
+    ports:
+      - "8080:8080"
+      - "443:443"
     depends_on:
       - task.hive.db
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:8080;http://+:443
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=DEVCERTIFICATEPASSWORD
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
       - ConnectionStrings__DefaultConnection=Server=task.hive.db;Initial Catalog=taskhive;Persist Security Info=False;User ID=sa;Password=TaskHive@dm1n;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;
       - AwsConfiguration__AwsAccessKey=AWSACCESSKEY
       - AwsConfiguration__AwsSecretKey=AWSSECRETKEY
       - AwsConfiguration__AwsBucketName=AWSBUCKETNAME
       - EmailService__SenderEmail=senderemail@outlook.com
       - EmailService__SenderPassword=senderpassword
-      - EmailService__WebAppUrl=http://productionurl.com
+      - EmailService__WebAppUrl=https://productionurl.com
       - Jwt__SecretKey=wGxqIr4EFM5NQQ/SECRETKEYTOEDIT
-      - SignalRService__BaseUrl=http://localhost:80/notification-hub
+      - SignalRService__BaseUrl=http://localhost:443/notification-hub
       - SignalRService__AccessToken=22aa36d3129af6055e312ac0faf244c6
-    ports:
-      - "8080:80"
+      - Authentication__Google__ClientId=GOOGLECLIENTID
+      - Authentication__Google__ClientSecret=GOOGLECLIENTSECRET
+    volumes:
+      - ~/.aspnet/https:/https:ro
