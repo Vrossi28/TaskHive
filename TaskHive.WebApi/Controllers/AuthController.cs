@@ -110,6 +110,8 @@ namespace TaskHive.WebApi.Controllers
 
             var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
+            if (!result.Succeeded) return Forbid();
+
             IEnumerable<Claim> claims = result.Principal.Identities.FirstOrDefault().Claims.Select(claim =>
             new Claim(claim.Issuer, claim.OriginalIssuer, claim.Type, claim.Value));
 
