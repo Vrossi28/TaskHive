@@ -17,10 +17,8 @@ namespace TaskHive.Application.Contracts.Requests
         [EmailAddress]
         public string Email { get; set; }
 
-        [DataMember(Name = "password", IsRequired = true)]
+        [DataMember(Name = "password", IsRequired = false)]
         [PasswordPropertyText]
-        [MinLength(6, ErrorMessage = "Password cannot have less than 6 digits.")]
-        [Required(ErrorMessage = "Password must be defined.")]
         public string Password { get; set; }
     }
 }

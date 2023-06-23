@@ -39,7 +39,7 @@ namespace TaskHive.WebApi.Controllers
             IssueRepository issueRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -110,7 +110,7 @@ namespace TaskHive.WebApi.Controllers
             IssueRepository issueRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -140,7 +140,7 @@ namespace TaskHive.WebApi.Controllers
             IssueRepository issueRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -172,7 +172,7 @@ namespace TaskHive.WebApi.Controllers
             AccountWorkspaceRepository accountWorkspaceRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -233,7 +233,7 @@ namespace TaskHive.WebApi.Controllers
             AccountWorkspaceRepository accountWorkspaceRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -265,7 +265,7 @@ namespace TaskHive.WebApi.Controllers
             AccountLoggedWorkRepository accountLoggedWorkRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -337,7 +337,7 @@ namespace TaskHive.WebApi.Controllers
             AccountWorkspaceRepository accountWorkspaceRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -374,7 +374,7 @@ namespace TaskHive.WebApi.Controllers
             IssueRepository issueRepository = new();
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -429,7 +429,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -488,7 +488,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -533,7 +533,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -582,7 +582,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -625,7 +625,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -664,7 +664,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
@@ -713,7 +713,7 @@ namespace TaskHive.WebApi.Controllers
 
             try
             {
-                var email = User.FindFirst(ClaimTypes.Name)?.Value;
+                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
