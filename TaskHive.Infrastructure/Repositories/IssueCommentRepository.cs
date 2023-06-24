@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TaskHive.Core.Entities;
+using TaskHive.Core.Utils;
 using TaskHive.Infrastructure.Models;
 using TaskHive.Infrastructure.Persistence;
 
@@ -14,6 +17,16 @@ namespace TaskHive.Infrastructure.Repositories
     {
         private TaskHiveContext _dbContext = new();
 
+        private static Expression<Func<IssueComment, object>> GetSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "comment" => issue => issue.Comment,
+                "account" => issue => issue.AccountId,
+                _ => issue => issue.IssueCommentId
+            };
+        }
+
         public async Task<IssueComment> GetCommentByIdAsync(Guid issueCommentId)
         {
             IssueComment issueComment = null;
@@ -22,21 +35,35 @@ namespace TaskHive.Infrastructure.Repositories
             return issueComment;
         }
 
-        public async Task<List<IssueCommentDto>> GetAllCommentsFromIssue(Guid issueId)
+        public async Task<PagedList<IssueCommentDto>> GetAllCommentsFromIssue(Guid issueId,
+            string? searchTerm, string? sortColumn, string? sortOrder, int page,
+            int pageSize)
         {
-            List<IssueCommentDto> dtos = new();
-            List<IssueComment> issueComments = new();
-            issueComments = _dbContext.IssueComment.AsNoTracking().Where((e) => e.IssueId == issueId).ToList();
+            IQueryable<IssueComment> query = _dbContext.IssueComment.AsNoTracking().Where((e) => e.IssueId == issueId);
 
-            if (issueComments.Count < 1) return dtos;
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Where(p => p.Comment.Contains(searchTerm));
 
-            foreach (var issueComment in issueComments)
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
+
+            var comments = PagedList<IssueComment>.Create(query, page, pageSize);
+
+            List <IssueCommentDto> dtos = new();
+
+            foreach (var issueComment in comments.Items)
             {
                 var dto = await ConvertToDto(issueComment);
                 if (dto != null) dtos.Add(dto);
             }
 
-            return dtos;
+            return new(dtos, comments.Page, comments.PageSize, comments.TotalCount);
         }
 
         public async Task<bool> AddCommentAsync(IssueComment issueComment)
