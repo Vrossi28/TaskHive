@@ -1,13 +1,16 @@
 ﻿using Humanizer;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using TaskHive.Core.Entities;
 using TaskHive.Core.Enums;
+using TaskHive.Core.Utils;
 using TaskHive.Infrastructure.Models;
 using TaskHive.Infrastructure.Persistence;
 
@@ -41,8 +44,7 @@ namespace TaskHive.Infrastructure.Repositories
         public async Task<IssueDto> UpdateIssueAsync(Issue issue)
         {
             Issue updatedIssue = null;
-            var issues = await GetIssuesForWorkspace(issue.WorkspaceId);
-            var existingIssue = issues.FirstOrDefault(p => p.IssueId == issue.IssueId);
+            var existingIssue = await _dbContext.Issue.AsNoTracking().SingleOrDefaultAsync(e => e.IssueId == issue.IssueId);
             if (existingIssue != null)
             {
                 updatedIssue = new()
@@ -74,24 +76,68 @@ namespace TaskHive.Infrastructure.Repositories
             return new IssueDto();
         }
 
-        public async Task<List<IssueDto>> GetIssuesForAccountByAccountId(Guid accountId)
+        public async Task<PagedList<IssueDto>> GetIssuesForAccountByAccountId(Guid accountId, 
+            string? searchTerm, Guid? workspaceId, string? sortColumn, string? sortOrder, int page, 
+            int pageSize)
         {
-            List<Issue> issues;
+            IQueryable<Issue> query = _dbContext.Issue.Where(i => i.CurrentAssignee == accountId);
 
-            issues = _dbContext.Issue.AsNoTracking().Where((e) => e.CurrentAssignee == accountId).ToList();
+            if (!string.IsNullOrEmpty(searchTerm)) 
+                query = query.Where(p => p.Description.Contains(searchTerm) || p.Title.Contains(searchTerm));
 
-            List<IssueDto> detailedIssues = await GetDetailedIssues(issues);
+            if (workspaceId is not null)
+                query = query.Where(p => p.WorkspaceId == workspaceId);
 
-            return detailedIssues;
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
+
+            var issues = PagedList<Issue>.Create(query, page, pageSize);
+
+            List<IssueDto> detailedIssues = await GetDetailedIssues(issues.Items);
+
+            return new(detailedIssues, issues.Page, issues.PageSize, issues.TotalCount);
         }
 
-        public async Task<List<IssueDto>> GetIssuesForWorkspace(Guid workspaceId)
+        private static Expression<Func<Issue, object>> GetSortProperty(string? sortColumn)
         {
-            List<Issue> issues = _dbContext.Issue.AsNoTracking().Where((e) => e.WorkspaceId == workspaceId).ToList();
+            return (sortColumn?.ToLower()) switch
+            {
+                "title" => issue => issue.Title,
+                "status" => issue => issue.Status,
+                "createdat" => issue => issue.CreatedAt,
+                "updatedat" => issue => issue.UpdatedAt,
+                _ => issue => issue.IssueId
+            };
+        }
 
-            List<IssueDto> detailedIssues = await GetDetailedIssues(issues);
+        public async Task<PagedList<IssueDto>> GetIssuesForWorkspace(Guid workspaceId, 
+            string searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
+        {
+            IQueryable<Issue> query = _dbContext.Issue.Where(i => i.WorkspaceId == workspaceId);
 
-            return detailedIssues;
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Where(p => p.Description.Contains(searchTerm) || p.Title.Contains(searchTerm));
+
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
+
+            var issues = PagedList<Issue>.Create(query, page, pageSize);
+
+            List<IssueDto> detailedIssues = await GetDetailedIssues(issues.Items);
+
+            return new(detailedIssues, issues.Page, issues.PageSize, issues.TotalCount);
         }
 
         public async Task<List<IssueDto>> GetIssuesForAccountByIds(Guid accountId, Guid workspaceId)

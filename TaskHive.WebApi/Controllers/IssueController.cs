@@ -99,12 +99,24 @@ namespace TaskHive.WebApi.Controllers
         /// <summary>
         /// List of issues assigned to authenticated account
         /// </summary>
+        /// <param name="searchTerm">Provides a search term to filter results</param>
+        /// <param name="sortColumn">Determine whether is intending to sort by title (title), status (status), created date (createdat) or updated date (updatedat), default is according to current database id's</param>
+        /// <param name="sortOrder">Determine whether is intending to order by ascending (asc) or descending (desc)</param>
+        /// <param name="workspaceId">Determine specific workspace to retrieve items</param>
+        /// <param name="page">Determine desired page to retrieve items</param>
+        /// <param name="pageSize">Determine desired size for each page containing items</param>
         /// <response code="200">List of issues</response>
         /// <response code="404">Authenticated account not found</response>
         /// <response code="500">Internal error</response>
-        [HttpGet("issue/for-account/all")]
+        [HttpGet("issue/for-account")]
         [Authorize]
-        public async Task<IActionResult> GetAllIssuesForAccount()
+        public async Task<IActionResult> GetIssuesForAccount(
+            [FromQuery] string? searchTerm, 
+            [FromQuery] string? sortColumn, 
+            [FromQuery] string? sortOrder,
+            [FromQuery] Guid? workspaceId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             AccountRepository accountRepository = new();
             IssueRepository issueRepository = new();
@@ -114,7 +126,8 @@ namespace TaskHive.WebApi.Controllers
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
-                var issues = await issueRepository.GetIssuesForAccountByAccountId(user.AccountId);
+                var issues = await issueRepository.GetIssuesForAccountByAccountId(user.AccountId, searchTerm, 
+                    workspaceId, sortColumn, sortOrder, page, pageSize);
                 var json = JsonConvert.SerializeObject(issues, Formatting.Indented);
 
                 return Ok(json);
@@ -159,13 +172,23 @@ namespace TaskHive.WebApi.Controllers
         /// <summary>
         /// Provides list of issue details for given worskspace
         /// </summary>
+        /// <param name="searchTerm">Provides a search term to filter results</param>
+        /// <param name="sortColumn">Determine whether is intending to sort by title (title), status (status), created date (createdat) or updated date (updatedat), default is according to current database id's</param>
+        /// <param name="sortOrder">Determine whether is intending to order by ascending (asc) or descending (desc)</param>
+        /// <param name="page">Determine desired page to retrieve items</param>
+        /// <param name="pageSize">Determine desired size for each page containing items</param>
         /// <response code="200">List of issues</response>
         /// <response code="400">Account does not belong to given workspace</response>
         /// <response code="404">Authenticated account not found</response>
         /// <response code="500">Internal error</response>
         [HttpGet("issue/for-workspace/{workspaceId}")]
         [Authorize]
-        public async Task<IActionResult> GetAllIssuesForWorkspace(Guid workspaceId)
+        public async Task<IActionResult> GetIssuesForWorkspace(Guid workspaceId, 
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? sortColumn, 
+            [FromQuery] string? sortOrder, 
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             AccountRepository accountRepository = new();
             IssueRepository issueRepository = new();
@@ -179,7 +202,7 @@ namespace TaskHive.WebApi.Controllers
                 var accWorkspace = accountWorkspaceRepository.GetAccountWorkspaceByIds(workspaceId, user.AccountId);
                 if (user == null) return BadRequest(new { message = "User not member of defined workspace." });
 
-                var issues = await issueRepository.GetIssuesForWorkspace(workspaceId);
+                var issues = await issueRepository.GetIssuesForWorkspace(workspaceId, searchTerm, sortColumn, sortOrder, page, pageSize);
                 var json = JsonConvert.SerializeObject(issues, Formatting.Indented);
 
                 return Ok(json);
@@ -384,8 +407,7 @@ namespace TaskHive.WebApi.Controllers
                 var workspace = accountWorkspaceRepository.GetAccountWorkspaceByIds(issue.WorkspaceId, user.AccountId);
                 if (workspace == null) return Conflict(new { message = "User is not a member of this workspace." });
 
-                var issues = await issueRepository.GetIssuesForWorkspace(issue.WorkspaceId);
-                var existingIssue = issues.FirstOrDefault(p => p.IssueId == issue.IssueId);
+                var existingIssue = await issueRepository.GetIssueByIdAsync(issue.IssueId);
                 if (existingIssue == null) return BadRequest(new { message = "Issue not found." });
 
                 var prevAssigned = await accountRepository.GetAccountById(existingIssue.CurrentAssignee);
