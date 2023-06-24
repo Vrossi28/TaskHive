@@ -216,12 +216,24 @@ namespace TaskHive.WebApi.Controllers
         /// <summary>
         /// Provides list of child issue details for given issue
         /// </summary>
+        /// <param name="searchTerm">Provides a search term to filter results</param>
+        /// <param name="sortColumn">Determine whether is intending to sort by title (title), status (status), created date (createdat) or updated date (updatedat), default is according to current database id's</param>
+        /// <param name="sortOrder">Determine whether is intending to order by ascending (asc) or descending (desc)</param>
+        /// <param name="workspaceId">Determine specific workspace to retrieve items</param>
+        /// <param name="page">Determine desired page to retrieve items</param>
+        /// <param name="pageSize">Determine desired size for each page containing items</param>
         /// <response code="200">List of issues</response>
         /// <response code="404">Authenticated account not found</response>
         /// <response code="500">Internal error</response>
         [HttpGet("issue/{issueId}/childs")]
         [Authorize]
-        public async Task<IActionResult> GetChildsForIssue(Guid issueId)
+        public async Task<IActionResult> GetChildsForIssue(Guid issueId,
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? sortColumn,
+            [FromQuery] string? sortOrder,
+            [FromQuery] Guid? workspaceId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             IssueRepository issueRepository = new();
             try
@@ -229,41 +241,7 @@ namespace TaskHive.WebApi.Controllers
                 var issue = await issueRepository.GetIssueByIdAsync(issueId);
                 if (issue == null) return NotFound(new { message = "Provided issue was not found" });
 
-                var issues = await issueRepository.GetChildIssues(issueId);
-                var json = JsonConvert.SerializeObject(issues, Formatting.Indented);
-
-                return Ok(json);
-            }
-            catch (Exception ex)
-            {
-                return ValidationProblem(ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// Provides list of issues for account from given worskspace
-        /// </summary>
-        /// <response code="200">List of issues</response>
-        /// <response code="400">Invalid workspace identification</response>
-        /// <response code="404">Authenticated account not found</response>
-        /// <response code="500">Internal error</response>
-        [HttpGet("issue/for-account/{workspaceId}")]
-        [Authorize]
-        public async Task<IActionResult> GetAllIssuesForAccountByWorkspaceId(Guid workspaceId)
-        {
-            AccountRepository accountRepository = new();
-            IssueRepository issueRepository = new();
-            AccountWorkspaceRepository accountWorkspaceRepository = new();
-            try
-            {
-                var email = User.Claims.Where(e => e.Value.Contains('@')).First().Value;
-                var user = await accountRepository.GetActiveAccountByEmailAsync(email);
-                if (user == null) return NotFound(new { message = "User not found." });
-
-                var workspace = accountWorkspaceRepository.GetAccountWorkspaceByIds(workspaceId, user.AccountId);
-                if (workspace == null) return BadRequest(new { message = "Workspace not found." });
-
-                var issues = await issueRepository.GetIssuesForAccountByIds(user.AccountId, workspaceId);
+                var issues = await issueRepository.GetChildIssues(issueId, searchTerm, workspaceId, sortColumn, sortOrder, page, pageSize);
                 var json = JsonConvert.SerializeObject(issues, Formatting.Indented);
 
                 return Ok(json);

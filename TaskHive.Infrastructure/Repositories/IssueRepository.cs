@@ -104,18 +104,6 @@ namespace TaskHive.Infrastructure.Repositories
             return new(detailedIssues, issues.Page, issues.PageSize, issues.TotalCount);
         }
 
-        private static Expression<Func<Issue, object>> GetSortProperty(string? sortColumn)
-        {
-            return (sortColumn?.ToLower()) switch
-            {
-                "title" => issue => issue.Title,
-                "status" => issue => issue.Status,
-                "createdat" => issue => issue.CreatedAt,
-                "updatedat" => issue => issue.UpdatedAt,
-                _ => issue => issue.IssueId
-            };
-        }
-
         public async Task<PagedList<IssueDto>> GetIssuesForWorkspace(Guid workspaceId, 
             string searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
@@ -140,22 +128,31 @@ namespace TaskHive.Infrastructure.Repositories
             return new(detailedIssues, issues.Page, issues.PageSize, issues.TotalCount);
         }
 
-        public async Task<List<IssueDto>> GetIssuesForAccountByIds(Guid accountId, Guid workspaceId)
+        public async Task<PagedList<IssueDto>> GetChildIssues(Guid issueId,
+            string? searchTerm, Guid? workspaceId, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
-            List<Issue> issues = _dbContext.Issue.AsNoTracking().Where((e) => e.CurrentAssignee == accountId && e.WorkspaceId == workspaceId).ToList();
+            IQueryable<Issue> query = _dbContext.Issue.Where(i => i.ParentId == issueId);
 
-            List<IssueDto> detailedIssues = await GetDetailedIssues(issues);
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Where(p => p.Description.Contains(searchTerm) || p.Title.Contains(searchTerm));
 
-            return detailedIssues;
-        }
+            if (workspaceId is not null)
+                query = query.Where(p => p.WorkspaceId == workspaceId);
 
-        public async Task<List<IssueDto>> GetChildIssues(Guid issueId)
-        {
-            List<Issue> issues = _dbContext.Issue.AsNoTracking().Where((e) => e.ParentId == issueId).ToList();
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
 
-            List<IssueDto> detailedIssues = await GetDetailedIssues(issues);
+            var issues = PagedList<Issue>.Create(query, page, pageSize);
 
-            return detailedIssues;
+            List<IssueDto> detailedIssues = await GetDetailedIssues(issues.Items);
+
+            return new(detailedIssues, issues.Page, issues.PageSize, issues.TotalCount);
         }
 
         public async Task<bool> AddIssue(Issue issue)
@@ -246,6 +243,18 @@ namespace TaskHive.Infrastructure.Repositories
             }
 
             return dto;
+        }
+
+        private static Expression<Func<Issue, object>> GetSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "title" => issue => issue.Title,
+                "status" => issue => issue.Status,
+                "createdat" => issue => issue.CreatedAt,
+                "updatedat" => issue => issue.UpdatedAt,
+                _ => issue => issue.IssueId
+            };
         }
     }
 }
