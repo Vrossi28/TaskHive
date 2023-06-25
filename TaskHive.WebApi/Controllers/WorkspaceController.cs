@@ -113,16 +113,32 @@ namespace TaskHive.WebApi.Controllers
         /// <summary>
         /// List of accounts that belong provided workspace
         /// </summary>
+        /// <param name="searchTerm">Provides a search term to filter results</param>
+        /// <param name="sortColumn">Determine whether is intending to sort by account id (accountid) or role (role), default is according to current database id's</param>
+        /// <param name="sortOrder">Determine whether is intending to order by ascending (asc) or descending (desc)</param>
+        /// <param name="page">Determine desired page to retrieve items</param>
+        /// <param name="pageSize">Determine desired size for each page containing items</param>
         /// <response code="200">List of account details</response>
         /// <response code="500">Internal error</response>
         [HttpGet("workspace/{workspaceId}/accounts")]
         [Authorize]
-        public async Task<IActionResult> GetAllAccountsForWorkspace(Guid workspaceId)
+        public async Task<IActionResult> GetAccountsForWorkspace(Guid workspaceId,
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? sortColumn,
+            [FromQuery] string? sortOrder,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             AccountRepository accountRepository = new();
             try
             {
-                return Ok(await accountRepository.GetAccountsInWorkspace(workspaceId));
+                return Ok(await accountRepository.GetAccountsInWorkspace(
+                    workspaceId, 
+                    searchTerm, 
+                    sortColumn, 
+                    sortOrder, 
+                    page, 
+                    pageSize));
             }
             catch (Exception ex)
             {
@@ -133,12 +149,22 @@ namespace TaskHive.WebApi.Controllers
         /// <summary>
         /// List of workspaces that authenticated account belong
         /// </summary>
+        /// <param name="searchTerm">Provides a search term to filter results</param>
+        /// <param name="sortColumn">Determine whether is intending to sort by account id (accountid) or role (role), default is according to current database id's</param>
+        /// <param name="sortOrder">Determine whether is intending to order by ascending (asc) or descending (desc)</param>
+        /// <param name="page">Determine desired page to retrieve items</param>
+        /// <param name="pageSize">Determine desired size for each page containing items</param>
         /// <response code="200">List of workspaces</response>
         /// <response code="404">Authenticated account not found</response>
         /// <response code="500">Internal error</response>
-        [HttpGet("workspace/all")]
+        [HttpGet("workspace/account")]
         [Authorize]
-        public async Task<IActionResult> GetAllWorkspacesForAccount()
+        public async Task<IActionResult> GetWorkspacesForAccount(
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? sortColumn,
+            [FromQuery] string? sortOrder,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             AccountRepository accountRepository = new();
             WorkspaceRepository workspaceRepository = new();
@@ -148,7 +174,8 @@ namespace TaskHive.WebApi.Controllers
                 var user = await accountRepository.GetActiveAccountByEmailAsync(email);
                 if (user == null) return NotFound(new { message = "User not found." });
 
-                var workspaces = workspaceRepository.GetWorkspacesForAccountByAccountId(user.AccountId);
+                var workspaces = workspaceRepository.GetWorkspacesForAccountByAccountId(user.AccountId, 
+                    searchTerm, sortColumn, sortOrder, page, pageSize);
 
                 JsonSerializerSettings settings = new()
                 {

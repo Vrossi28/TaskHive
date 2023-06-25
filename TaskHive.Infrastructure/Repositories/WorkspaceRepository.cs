@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using TaskHive.Core.Entities;
+using TaskHive.Core.Utils;
 using TaskHive.Infrastructure.Persistence;
 
 namespace TaskHive.Infrastructure.Repositories
@@ -43,18 +45,38 @@ namespace TaskHive.Infrastructure.Repositories
             return workspaces;
         }
 
-        public List<Workspace> GetWorkspacesForAccountByAccountId(Guid accountId)
+        public PagedList<Workspace> GetWorkspacesForAccountByAccountId(Guid accountId, 
+            string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
-            List<Workspace> workspaces = new();
-            List<AccountWorkspace> accountWorkspaces = _dbContext.AccountWorkspace.AsNoTracking().Where((c) => c.AccountId == accountId).ToList();
+            IQueryable<AccountWorkspace> query = _dbContext.AccountWorkspace.AsNoTracking().Where((c) => c.AccountId == accountId);
 
-            foreach (var accountWorkspace in accountWorkspaces)
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Join(_dbContext.Workspace,
+                accountWorkspace => accountWorkspace.WorkspaceId,
+                workspace => workspace.WorkspaceId,
+                (accountWorkspace, workspace) => new { AccountWorkspace = accountWorkspace, Workspace = workspace })
+                .Where(joinResult => joinResult.Workspace.Name.Contains(searchTerm))
+                .Select(joinResult => joinResult.AccountWorkspace);
+
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
+
+            List<Workspace> workspaces = new();
+            var accountWorkspaces = PagedList<AccountWorkspace>.Create(query, page, pageSize);
+
+            foreach (var accountWorkspace in accountWorkspaces.Items)
             {
                 var workspace = _dbContext.Workspace.AsNoTracking().Where((e) => e.WorkspaceId == accountWorkspace.WorkspaceId).FirstOrDefault();
                 workspaces.Add(workspace);
             }
 
-            return workspaces;
+            return new(workspaces, accountWorkspaces.Page, accountWorkspaces.PageSize, accountWorkspaces.TotalCount);
         }
 
         public async Task<bool> AddWorkspace(Workspace workspace)
@@ -63,6 +85,16 @@ namespace TaskHive.Infrastructure.Repositories
             var result = await _dbContext.SaveChangesAsync();
 
             return Convert.ToBoolean(result);
+        }
+
+        private static Expression<Func<AccountWorkspace, object>> GetSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "role" => acc => acc.RoleId,
+                "accountid" => acc => acc.AccountId,
+                _ => work => work.AccountWorkspaceId
+            };
         }
     }
 }

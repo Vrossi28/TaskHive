@@ -3,10 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using System.Transactions;
 using TaskHive.Core.Entities;
+using TaskHive.Core.Utils;
 using TaskHive.Infrastructure.Models;
 using TaskHive.Infrastructure.Persistence;
 
@@ -116,17 +118,36 @@ namespace TaskHive.Infrastructure.Repositories
             return account;
         }
 
-        public async Task<List<AccountDto>> GetAccountsInWorkspace(Guid workspaceId)
+        public async Task<PagedList<AccountDto>> GetAccountsInWorkspace(Guid workspaceId,
+            string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
-            AccountWorkspaceRepository accountWorkspaceRepository = new AccountWorkspaceRepository();
-            List<AccountDto> accounts = new();
+            IQueryable<AccountWorkspace> query = _dbContext.AccountWorkspace.AsNoTracking().Where((a) => a.WorkspaceId == workspaceId);
 
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Join(_dbContext.Account,
+                accountWorkspace => accountWorkspace.AccountId,
+                account => account.AccountId,
+                (accountWorkspace, account) => new { AccountWorkspace = accountWorkspace, Account = account })
+                .Where(joinResult => joinResult.Account.FirstName.Contains(searchTerm) 
+                || joinResult.Account.LastName.Contains(searchTerm) 
+                || joinResult.Account.Email.Contains(searchTerm))
+                .Select(joinResult => joinResult.AccountWorkspace);
+
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
+
+            List<AccountDto> accounts = new();
+            var accountWorkspaces = PagedList<AccountWorkspace>.Create(query, page, pageSize);
+            
             try
             {
-                var accountWorkspaces = accountWorkspaceRepository.GetAccountWorkspacesByWorkspaceId(workspaceId);
-                if (accountWorkspaces == null || accountWorkspaces.Count == 0) return accounts;
-
-                foreach (var acc in accountWorkspaces)
+                foreach (var acc in accountWorkspaces.Items)
                 {
                     Account account = await GetAccountById(acc.AccountId);
                     accounts.Add(await ConvertToDto(account.Email));
@@ -137,7 +158,7 @@ namespace TaskHive.Infrastructure.Repositories
                 Console.WriteLine(ex.ToString());
             }
 
-            return accounts;
+            return new(accounts, accountWorkspaces.Page, accountWorkspaces.PageSize, accountWorkspaces.TotalCount);
 
         }
 
@@ -216,6 +237,16 @@ namespace TaskHive.Infrastructure.Repositories
             }
 
             return await ConvertToDto(accountDto.Email);
+        }
+
+        private static Expression<Func<AccountWorkspace, object>> GetSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "role" => acc => acc.RoleId,
+                "accountid" => acc => acc.AccountId,
+                _ => work => work.AccountWorkspaceId
+            };
         }
     }
 }
