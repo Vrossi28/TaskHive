@@ -135,11 +135,11 @@ namespace TaskHive.Infrastructure.Repositories
 
             if (sortOrder?.ToLower() == "desc")
             {
-                query = query.OrderByDescending(GetSortProperty(sortColumn));
+                query = query.OrderByDescending(GetAccWorkspaceSortProperty(sortColumn));
             }
             else
             {
-                query = query.OrderBy(GetSortProperty(sortColumn));
+                query = query.OrderBy(GetAccWorkspaceSortProperty(sortColumn));
             }
 
             List<AccountDto> accounts = new();
@@ -162,32 +162,37 @@ namespace TaskHive.Infrastructure.Repositories
 
         }
 
-        public async Task<List<AccountDto>> GetAccountsInCompanyExcludingInWorkspace(Guid companyId, Guid workspaceId)
+        public async Task<PagedList<AccountDto>> GetAccountsInCompanyExcludingInWorkspace(Guid companyId, Guid workspaceId,
+            string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
             List<AccountDto> accounts = new();
 
-            try
+            IQueryable<Account> query = _dbContext.Account.AsNoTracking()
+                .Where(acc => acc.CompanyId == companyId && !_dbContext.AccountWorkspace
+                .Any(accWorkspace => accWorkspace.AccountId == acc.AccountId && accWorkspace.WorkspaceId == workspaceId))
+                .Distinct();
+
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Where(a => a.FirstName.Contains(searchTerm) || a.LastName.Contains(searchTerm) || a.Email.Contains(searchTerm));
+
+            if (sortOrder?.ToLower() == "desc")
             {
-                var accountsByCompanyExcludingInWorkspace = _dbContext.Account.AsNoTracking()
-                    .Where(acc => acc.CompanyId == companyId && !_dbContext.AccountWorkspace
-                    .Any(accWorkspace => accWorkspace.AccountId == acc.AccountId && accWorkspace.WorkspaceId == workspaceId))
-                    .Distinct()
-                    .ToList();
-
-                if (accountsByCompanyExcludingInWorkspace == null || accountsByCompanyExcludingInWorkspace.Count == 0) return accounts;
-
-                foreach (var acc in accountsByCompanyExcludingInWorkspace)
-                {
-                    Account account = await GetAccountById(acc.AccountId);
-                    accounts.Add(await ConvertToDto(account.Email));
-                }
+                query = query.OrderByDescending(GetAccSortProperty(sortColumn));
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine(ex.ToString());
+                query = query.OrderBy(GetAccSortProperty(sortColumn));
             }
 
-            return accounts;
+            var results = PagedList<Account>.Create(query, page, pageSize);
+
+            foreach (var acc in results.Items)
+            {
+                Account account = await GetAccountById(acc.AccountId);
+                accounts.Add(await ConvertToDto(account.Email));
+            }
+
+            return new(accounts, results.Page, results.PageSize, results.TotalCount);
         }
 
         private async Task<AccountDto> ConvertToDto(string email)
@@ -239,13 +244,24 @@ namespace TaskHive.Infrastructure.Repositories
             return await ConvertToDto(accountDto.Email);
         }
 
-        private static Expression<Func<AccountWorkspace, object>> GetSortProperty(string? sortColumn)
+        private static Expression<Func<AccountWorkspace, object>> GetAccWorkspaceSortProperty(string? sortColumn)
         {
             return (sortColumn?.ToLower()) switch
             {
                 "role" => acc => acc.RoleId,
                 "accountid" => acc => acc.AccountId,
-                _ => work => work.AccountWorkspaceId
+                _ => acc => acc.AccountWorkspaceId
+            };
+        }
+
+        private static Expression<Func<Account, object>> GetAccSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "firstname" => acc => acc.FirstName,
+                "lastname" => acc => acc.LastName,
+                "email" => acc => acc.Email,
+                _ => acc => acc.AccountId
             };
         }
     }
