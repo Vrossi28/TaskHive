@@ -323,6 +323,11 @@ namespace TaskHive.WebApi.Controllers
         /// <summary>
         /// List of all logged works for a given issue
         /// </summary>
+        /// <param name="searchTerm">Provides a search term to filter results</param>
+        /// <param name="sortColumn">Determine whether is intending to sort by time spent (timespent), account (accountid), started date (startedat) or description (description), default is according to current database id's</param>
+        /// <param name="sortOrder">Determine whether is intending to order by ascending (asc) or descending (desc)</param>
+        /// <param name="page">Determine desired page to retrieve items</param>
+        /// <param name="pageSize">Determine desired size for each page containing items</param>
         /// <response code="200">List of logged works</response>
         /// <response code="400">Invalid issue identification</response>
         /// <response code="404">Authenticated account not found</response>
@@ -330,7 +335,12 @@ namespace TaskHive.WebApi.Controllers
         /// <response code="500">Internal error</response>
         [HttpGet("issue/{issueId}/log-work")]
         [Authorize]
-        public async Task<IActionResult> TimeLoggedForIssue(Guid issueId)
+        public async Task<IActionResult> TimeLoggedForIssue(Guid issueId,
+            [FromQuery] string? searchTerm,
+            [FromQuery] string? sortColumn,
+            [FromQuery] string? sortOrder,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             AccountRepository accountRepository = new();
             AccountLoggedWorkRepository accountLoggedWorkRepository = new();
@@ -348,7 +358,7 @@ namespace TaskHive.WebApi.Controllers
                 var workspace = accountWorkspaceRepository.GetAccountWorkspaceByIds(issue.WorkspaceId, user.AccountId);
                 if (workspace == null) return Conflict(new { message = "User is not a member of this workspace." });
 
-                var result = await accountLoggedWorkRepository.GetAllLoggedWorksForIssue(issueId);
+                var result = await accountLoggedWorkRepository.GetAllLoggedWorksForIssue(issueId, searchTerm, sortColumn, sortOrder, page, pageSize);
 
                 return Ok(result);
             }

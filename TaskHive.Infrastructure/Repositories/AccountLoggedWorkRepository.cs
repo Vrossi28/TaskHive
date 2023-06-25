@@ -2,10 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using TaskHive.Core.Entities;
 using TaskHive.Core.Enums;
+using TaskHive.Core.Utils;
 using TaskHive.Infrastructure.Models;
 using TaskHive.Infrastructure.Persistence;
 
@@ -27,7 +29,9 @@ namespace TaskHive.Infrastructure.Repositories
         {
             AccountLoggedWork accountLoggedWork = null;
 
-            accountLoggedWork = await _dbContext.AccountLoggedWork.AsNoTracking().SingleOrDefaultAsync((e) => e.IssueId == issueId && e.AccountLoggedWorkId == accountLoggedWorkId);
+            accountLoggedWork = await _dbContext.AccountLoggedWork.
+                AsNoTracking().
+                SingleOrDefaultAsync((e) => e.IssueId == issueId && e.AccountLoggedWorkId == accountLoggedWorkId);
 
             return accountLoggedWork;
         }
@@ -41,18 +45,44 @@ namespace TaskHive.Infrastructure.Repositories
             return Convert.ToBoolean(result);
         }
 
-        public async Task<List<AccountLoggedWorkDto>> GetAllLoggedWorksForIssue(Guid issueId)
+        public async Task<PagedList<AccountLoggedWorkDto>> GetAllLoggedWorksForIssue(Guid issueId, string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
+            IQueryable<AccountLoggedWork> query = _dbContext.AccountLoggedWork.AsNoTracking().Where((e) => e.IssueId == issueId);
+
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Where(p => p.Description.Contains(searchTerm));
+
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetSortProperty(sortColumn));
+            }
+
             List<AccountLoggedWorkDto> result = new();
 
-            var loggedWorks = _dbContext.AccountLoggedWork.AsNoTracking().Where((e) => e.IssueId == issueId).ToList();
+            var works = PagedList<AccountLoggedWork>.Create(query, page, pageSize);
 
-            foreach (var loggedWork in loggedWorks)
+            foreach (var loggedWork in works.Items)
             {
                 result.Add(await ConvertToDto(loggedWork));
             }
 
-            return result;
+            return new(result, works.Page, works.PageSize, works.TotalCount);
+        }
+
+        private static Expression<Func<AccountLoggedWork, object>> GetSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "timespent" => work => work.TimeSpent,
+                "accountid" => work => work.AccountId,
+                "startedat" => work => work.StartingDate,
+                "description" => work => work.Description,
+                _ => work => work.AccountLoggedWorkId
+            };
         }
 
         private async Task<AccountLoggedWorkDto> ConvertToDto(AccountLoggedWork loggedWork)
