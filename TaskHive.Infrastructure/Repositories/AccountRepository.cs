@@ -3,10 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using System.Transactions;
 using TaskHive.Core.Entities;
+using TaskHive.Core.Utils;
 using TaskHive.Infrastructure.Models;
 using TaskHive.Infrastructure.Persistence;
 
@@ -116,17 +118,36 @@ namespace TaskHive.Infrastructure.Repositories
             return account;
         }
 
-        public async Task<List<AccountDto>> GetAccountsInWorkspace(Guid workspaceId)
+        public async Task<PagedList<AccountDto>> GetAccountsInWorkspace(Guid workspaceId,
+            string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
-            AccountWorkspaceRepository accountWorkspaceRepository = new AccountWorkspaceRepository();
-            List<AccountDto> accounts = new();
+            IQueryable<AccountWorkspace> query = _dbContext.AccountWorkspace.AsNoTracking().Where((a) => a.WorkspaceId == workspaceId);
 
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Join(_dbContext.Account,
+                accountWorkspace => accountWorkspace.AccountId,
+                account => account.AccountId,
+                (accountWorkspace, account) => new { AccountWorkspace = accountWorkspace, Account = account })
+                .Where(joinResult => joinResult.Account.FirstName.Contains(searchTerm) 
+                || joinResult.Account.LastName.Contains(searchTerm) 
+                || joinResult.Account.Email.Contains(searchTerm))
+                .Select(joinResult => joinResult.AccountWorkspace);
+
+            if (sortOrder?.ToLower() == "desc")
+            {
+                query = query.OrderByDescending(GetAccWorkspaceSortProperty(sortColumn));
+            }
+            else
+            {
+                query = query.OrderBy(GetAccWorkspaceSortProperty(sortColumn));
+            }
+
+            List<AccountDto> accounts = new();
+            var accountWorkspaces = PagedList<AccountWorkspace>.Create(query, page, pageSize);
+            
             try
             {
-                var accountWorkspaces = accountWorkspaceRepository.GetAccountWorkspacesByWorkspaceId(workspaceId);
-                if (accountWorkspaces == null || accountWorkspaces.Count == 0) return accounts;
-
-                foreach (var acc in accountWorkspaces)
+                foreach (var acc in accountWorkspaces.Items)
                 {
                     Account account = await GetAccountById(acc.AccountId);
                     accounts.Add(await ConvertToDto(account.Email));
@@ -137,36 +158,41 @@ namespace TaskHive.Infrastructure.Repositories
                 Console.WriteLine(ex.ToString());
             }
 
-            return accounts;
+            return new(accounts, accountWorkspaces.Page, accountWorkspaces.PageSize, accountWorkspaces.TotalCount);
 
         }
 
-        public async Task<List<AccountDto>> GetAccountsInCompanyExcludingInWorkspace(Guid companyId, Guid workspaceId)
+        public async Task<PagedList<AccountDto>> GetAccountsInCompanyExcludingInWorkspace(Guid companyId, Guid workspaceId,
+            string? searchTerm, string? sortColumn, string? sortOrder, int page, int pageSize)
         {
             List<AccountDto> accounts = new();
 
-            try
+            IQueryable<Account> query = _dbContext.Account.AsNoTracking()
+                .Where(acc => acc.CompanyId == companyId && !_dbContext.AccountWorkspace
+                .Any(accWorkspace => accWorkspace.AccountId == acc.AccountId && accWorkspace.WorkspaceId == workspaceId))
+                .Distinct();
+
+            if (!string.IsNullOrEmpty(searchTerm))
+                query = query.Where(a => a.FirstName.Contains(searchTerm) || a.LastName.Contains(searchTerm) || a.Email.Contains(searchTerm));
+
+            if (sortOrder?.ToLower() == "desc")
             {
-                var accountsByCompanyExcludingInWorkspace = _dbContext.Account.AsNoTracking()
-                    .Where(acc => acc.CompanyId == companyId && !_dbContext.AccountWorkspace
-                    .Any(accWorkspace => accWorkspace.AccountId == acc.AccountId && accWorkspace.WorkspaceId == workspaceId))
-                    .Distinct()
-                    .ToList();
-
-                if (accountsByCompanyExcludingInWorkspace == null || accountsByCompanyExcludingInWorkspace.Count == 0) return accounts;
-
-                foreach (var acc in accountsByCompanyExcludingInWorkspace)
-                {
-                    Account account = await GetAccountById(acc.AccountId);
-                    accounts.Add(await ConvertToDto(account.Email));
-                }
+                query = query.OrderByDescending(GetAccSortProperty(sortColumn));
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine(ex.ToString());
+                query = query.OrderBy(GetAccSortProperty(sortColumn));
             }
 
-            return accounts;
+            var results = PagedList<Account>.Create(query, page, pageSize);
+
+            foreach (var acc in results.Items)
+            {
+                Account account = await GetAccountById(acc.AccountId);
+                accounts.Add(await ConvertToDto(account.Email));
+            }
+
+            return new(accounts, results.Page, results.PageSize, results.TotalCount);
         }
 
         private async Task<AccountDto> ConvertToDto(string email)
@@ -216,6 +242,27 @@ namespace TaskHive.Infrastructure.Repositories
             }
 
             return await ConvertToDto(accountDto.Email);
+        }
+
+        private static Expression<Func<AccountWorkspace, object>> GetAccWorkspaceSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "role" => acc => acc.RoleId,
+                "accountid" => acc => acc.AccountId,
+                _ => acc => acc.AccountWorkspaceId
+            };
+        }
+
+        private static Expression<Func<Account, object>> GetAccSortProperty(string? sortColumn)
+        {
+            return (sortColumn?.ToLower()) switch
+            {
+                "firstname" => acc => acc.FirstName,
+                "lastname" => acc => acc.LastName,
+                "email" => acc => acc.Email,
+                _ => acc => acc.AccountId
+            };
         }
     }
 }
