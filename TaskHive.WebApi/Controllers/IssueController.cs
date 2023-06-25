@@ -241,7 +241,8 @@ namespace TaskHive.WebApi.Controllers
                 var issue = await issueRepository.GetIssueByIdAsync(issueId);
                 if (issue == null) return NotFound(new { message = "Provided issue was not found" });
 
-                var issues = await issueRepository.GetChildIssues(issueId, searchTerm, workspaceId, sortColumn, sortOrder, page, pageSize);
+                var issues = await issueRepository.GetChildIssues(issueId, 
+                    searchTerm, workspaceId, sortColumn, sortOrder, page, pageSize);
                 var json = JsonConvert.SerializeObject(issues, Formatting.Indented);
 
                 return Ok(json);
@@ -358,7 +359,8 @@ namespace TaskHive.WebApi.Controllers
                 var workspace = accountWorkspaceRepository.GetAccountWorkspaceByIds(issue.WorkspaceId, user.AccountId);
                 if (workspace == null) return Conflict(new { message = "User is not a member of this workspace." });
 
-                var result = await accountLoggedWorkRepository.GetAllLoggedWorksForIssue(issueId, searchTerm, sortColumn, sortOrder, page, pageSize);
+                var result = await accountLoggedWorkRepository.GetAllLoggedWorksForIssue(
+                    issueId, searchTerm, sortColumn, sortOrder, page, pageSize);
 
                 return Ok(result);
             }
